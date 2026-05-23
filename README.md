@@ -1,5 +1,7 @@
 # AutoLlama
 
+![AutoLlama banner](assets/autollama-banner.png)
+
 AutoLlama is a local HTTP service that exposes an OpenAI-compatible Chat
 Completions API and routes each request to the best locally installed Ollama
 model for the prompt.
@@ -18,45 +20,82 @@ configured model bucket, and forwards the request to Ollama.
 - Health check and model listing endpoints
 - Environment-based configuration with startup validation
 
-## Prerequisites
+## Built With
+
+- [Python](https://www.python.org/)
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [Uvicorn](https://www.uvicorn.org/)
+- [HTTPX](https://www.python-httpx.org/)
+- [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
+- [Ollama](https://ollama.com/)
+
+## Getting Started
+
+Follow these steps to run AutoLlama locally against an Ollama server.
+
+### Prerequisites
 
 - Python 3.11+
-- A running [Ollama](https://ollama.com) instance
+- A running [Ollama](https://ollama.com/) instance
 - The Ollama models referenced by your configured buckets
 
 The default configuration expects these models:
 
-```bash
+```sh
 ollama pull qwen3:30b-a3b
 ollama pull qwen2.5-coder:32b
 ollama pull qwen2.5:7b
 ollama pull deepseek-r1:14b
 ```
 
-## Quick Start
+### Installation
 
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python main.py
-```
+1. Clone the repository and enter the project directory.
 
-The server starts at:
+   ```sh
+   git clone https://github.com/WannaCry081/AutoLlama.git
+   cd AutoLlama
+   ```
 
-```text
-http://127.0.0.1:8000
-```
+2. Create and activate a virtual environment.
 
-If you are using the default settings, make sure Ollama is running at
-`http://localhost:11434`.
+   ```sh
+   python -m venv venv
+   source venv/bin/activate
+   ```
+
+3. Install Python dependencies.
+
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+4. Create a local environment file.
+
+   ```sh
+   cp .env.example .env
+   ```
+
+5. Start Ollama if it is not already running.
+
+   ```sh
+   ollama serve
+   ```
+
+6. Start AutoLlama.
+
+   ```sh
+   python main.py
+   ```
+
+The server starts at `http://127.0.0.1:8000` by default. If you are using the
+default settings, make sure Ollama is available at `http://localhost:11434`.
 
 ## Usage
 
 ### Let AutoLlama choose the model
 
-```bash
+```sh
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -95,17 +134,17 @@ additional `x_router` object:
 
 The `source` value can be:
 
-| Source | Meaning |
-| --- | --- |
-| `classifier` | AutoLlama classified the prompt and selected a bucket. |
-| `default` | AutoLlama fell back because the prompt was empty or classification failed. |
-| `explicit` | The request named a bucket or model directly. |
+| Source       | Meaning                                                                    |
+| ------------ | -------------------------------------------------------------------------- |
+| `classifier` | AutoLlama classified the prompt and selected a bucket.                     |
+| `default`    | AutoLlama fell back because the prompt was empty or classification failed. |
+| `explicit`   | The request named a bucket or model directly.                              |
 
 ### Bypass automatic routing
 
 Pass a configured bucket name:
 
-```bash
+```sh
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -116,7 +155,7 @@ curl http://127.0.0.1:8000/v1/chat/completions \
 
 Or pass a raw Ollama model tag:
 
-```bash
+```sh
 curl http://127.0.0.1:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -167,7 +206,7 @@ optional; defaults are defined in `app/config.py`.
 `MODELS` maps bucket names to Ollama model tags. `BUCKET_DESCRIPTIONS` gives the
 classifier a short description for each bucket. The keys must match.
 
-```bash
+```sh
 MODELS={"general":"qwen3:30b-a3b","coder":"qwen2.5-coder:32b","fast":"qwen2.5:7b","reasoner":"deepseek-r1:14b"}
 BUCKET_DESCRIPTIONS={"general":"everything else: knowledge, writing, brainstorming, summarising","coder":"programming, debugging, code review, software design, devops","fast":"short, simple, conversational, small talk","reasoner":"math, multi-step logic, formal proofs, hard puzzles"}
 DEFAULT_BUCKET=general
@@ -179,18 +218,18 @@ signal the classifier uses.
 
 ### Environment variables
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `OLLAMA_URL` | `http://localhost:11434` | Base URL for the Ollama server. |
-| `HOST` | `127.0.0.1` | Host address for the AutoLlama server. |
-| `PORT` | `8000` | Port for the AutoLlama server. |
-| `LOG_LEVEL` | `info` | Uvicorn and application log level. |
-| `MODELS` | Built-in 4-bucket map | JSON object mapping bucket names to Ollama model tags. |
-| `BUCKET_DESCRIPTIONS` | Built-in 4-bucket map | JSON object mapping bucket names to classifier descriptions. |
-| `DEFAULT_BUCKET` | `general` | Fallback bucket for empty prompts or failed classification. |
-| `CLASSIFIER_BUCKET` | `fast` | Bucket used to classify `model: "auto"` requests. |
-| `CLASSIFIER_TIMEOUT_S` | `30.0` | Timeout for the classifier call to Ollama. |
-| `CLASSIFIER_MAX_CHARS` | `2000` | Maximum characters from the user prompt passed to the classifier. |
+| Variable               | Default                  | Description                                                       |
+| ---------------------- | ------------------------ | ----------------------------------------------------------------- |
+| `OLLAMA_URL`           | `http://localhost:11434` | Base URL for the Ollama server.                                   |
+| `HOST`                 | `127.0.0.1`              | Host address for the AutoLlama server.                            |
+| `PORT`                 | `8000`                   | Port for the AutoLlama server.                                    |
+| `LOG_LEVEL`            | `info`                   | Uvicorn and application log level.                                |
+| `MODELS`               | Built-in 4-bucket map    | JSON object mapping bucket names to Ollama model tags.            |
+| `BUCKET_DESCRIPTIONS`  | Built-in 4-bucket map    | JSON object mapping bucket names to classifier descriptions.      |
+| `DEFAULT_BUCKET`       | `general`                | Fallback bucket for empty prompts or failed classification.       |
+| `CLASSIFIER_BUCKET`    | `fast`                   | Bucket used to classify `model: "auto"` requests.                 |
+| `CLASSIFIER_TIMEOUT_S` | `30.0`                   | Timeout for the classifier call to Ollama.                        |
+| `CLASSIFIER_MAX_CHARS` | `2000`                   | Maximum characters from the user prompt passed to the classifier. |
 
 Startup validation checks that:
 
@@ -223,11 +262,15 @@ Accepts an OpenAI-compatible chat completions payload.
 
 Model selection behavior:
 
-| Request `model` | Behavior |
-| --- | --- |
-| `auto` or omitted | Classify the latest user message and route to a bucket. |
-| configured bucket name | Use that bucket's configured Ollama model. |
-| raw model tag | Forward directly to Ollama with that model. |
+| Request `model`        | Behavior                                                |
+| ---------------------- | ------------------------------------------------------- |
+| `auto` or omitted      | Classify the latest user message and route to a bucket. |
+| configured bucket name | Use that bucket's configured Ollama model.              |
+| raw model tag          | Forward directly to Ollama with that model.             |
+
+AutoLlama currently does not add authentication. Keep it on a trusted local
+interface or place it behind your own auth layer before exposing it to a
+network.
 
 ## How Routing Works
 
@@ -239,28 +282,21 @@ For `model: "auto"`, AutoLlama:
 4. Routes the original request to the selected bucket's Ollama model.
 5. Falls back to `DEFAULT_BUCKET` if the classifier fails or returns no match.
 
-Automatic routing adds one extra Ollama `generate` call per `auto` request. Use
-a bucket name or raw model tag when you want to skip classification.
+Automatic routing adds one extra Ollama `/api/generate` call per `auto` request.
+Use a bucket name or raw model tag when you want to skip classification.
 
-## Development
-
-Run the server:
-
-```bash
-python main.py
-```
-
-## Project Structure
+### Project Structure
 
 ```text
 .
-+-- app/
-|   +-- api.py       # FastAPI routes
-|   +-- config.py    # Environment settings and validation
-|   +-- ollama.py    # Async Ollama client wrapper
-|   +-- routing.py   # Classification and routing logic
-+-- main.py          # Application entry point
-+-- requirements.txt
+|-- app/
+|   |-- api.py       # FastAPI routes
+|   |-- config.py    # Environment settings and validation
+|   |-- ollama.py    # Async Ollama client wrapper
+|   `-- routing.py   # Classification and routing logic
+|-- .env.example     # Local environment template
+|-- main.py          # Application entry point
+`-- requirements.txt # Python dependencies
 ```
 
 ## Troubleshooting
@@ -271,3 +307,5 @@ python main.py
   `DEFAULT_BUCKET`, and `CLASSIFIER_BUCKET` use matching bucket names.
 - If routing is inaccurate, make bucket descriptions more specific or choose a
   stronger `CLASSIFIER_BUCKET` model.
+- If a direct model request fails, confirm the model tag exists locally with
+  `ollama list`.
