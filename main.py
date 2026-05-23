@@ -5,18 +5,17 @@ import httpx
 from fastapi import FastAPI
 
 from app.api import router
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.ollama import OllamaClient
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings: Settings = get_settings()
+    settings = Settings()
     logging.basicConfig(
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s — %(message)s",
     )
-
     async with httpx.AsyncClient(timeout=None) as http:
         app.state.settings = settings
         app.state.ollama = OllamaClient(settings.ollama_url, http)
@@ -34,5 +33,5 @@ app.include_router(router)
 if __name__ == "__main__":
     import uvicorn
 
-    settings = get_settings()
+    settings = Settings()
     uvicorn.run("main:app", host=settings.host, port=settings.port, log_level=settings.log_level)

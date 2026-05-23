@@ -2,22 +2,34 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from .constants import (
-    CLASSIFIER_PROMPT,
-    CODE_HINTS,
-    DEFAULT_BUCKET,
-    REASON_HINTS,
-)
 from .ollama import OllamaClient
 
 log = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass
 class RouterDecision:
     bucket: str
     model: str
-    source: str  # heuristic | classifier | explicit
+    source: str  # classifier | default | explicit
+
+
+CLASSIFIER_PROMPT = """\
+You are a request router. Classify the user's prompt into ONE bucket.
+Reply with exactly one lowercase word, no punctuation, no explanation:
+
+{buckets}
+
+User prompt:
+\"\"\"{prompt}\"\"\"
+
+One word:"""
+
+
+def build_classifier_prompt(descriptions: dict[str, str], prompt: str) -> str:
+    width = max(len(name) for name in descriptions)
+    buckets = "\n".join(f"- {n.ljust(width)} : {d}" for n, d in descriptions.items())
+    return CLASSIFIER_PROMPT.format(buckets=buckets, prompt=prompt)
 
 
 def extract_user_text(messages: list[dict[str, Any]]) -> str:
@@ -36,72 +48,34 @@ def extract_user_text(messages: list[dict[str, Any]]) -> str:
     return ""
 
 
-def heuristic_bucket(text: str, short_threshold: int) -> str | None:
-    if not text.strip():
-        return "fast"
-    if CODE_HINTS.search(text):
-        return "coder"
-    if REASON_HINTS.search(text):
-        return "reasoner"
-    if len(text) < short_threshold:
-        return "fast"
-    return None
+async def route(messages, ollama: OllamaClient, settings) -> RouterDecision:
+    text = extract_user_text(messages).strip()
+    models = settings.models
+    descriptions = settings.bucket_descriptions
+    default = settings.default_bucket
 
+    if not text:
+        return _decide(default, models, "default")
 
-async def classify_with_llm(
-    ollama: OllamaClient,
-    classifier_model: str,
-    text: str,
-    buckets: list[str],
-    *,
-    max_chars: int,
-    timeout: float,
-) -> str:
+    prompt = build_classifier_prompt(descriptions, text[: settings.classifier_max_chars])
     try:
         answer = await ollama.generate(
-            model=classifier_model,
-            prompt=CLASSIFIER_PROMPT.format(prompt=text[:max_chars]),
-            timeout=timeout,
+            model=models[settings.classifier_bucket],
+            prompt=prompt,
+            timeout=settings.classifier_timeout_s,
             temperature=0,
             num_predict=8,
         )
     except Exception as exc:
-        log.warning("classifier failed, defaulting to %s: %s", DEFAULT_BUCKET, exc)
-        return DEFAULT_BUCKET
+        log.warning("classifier failed, defaulting to %s: %s", default, exc)
+        return _decide(default, models, "default")
 
     answer = answer.strip().lower()
-    for bucket in buckets:
-        if bucket in answer:
-            return bucket
-    return DEFAULT_BUCKET
+    bucket = next((b for b in descriptions if b in answer), default)
+    return _decide(bucket, models, "classifier")
 
 
-async def route(
-    messages: list[dict[str, Any]],
-    *,
-    ollama: OllamaClient,
-    models: dict[str, str],
-    classifier_model: str,
-    short_threshold: int,
-    classifier_max_chars: int,
-    classifier_timeout: float,
-) -> RouterDecision:
-    text = extract_user_text(messages)
-
-    bucket = heuristic_bucket(text, short_threshold)
-    if bucket is not None:
-        source = "heuristic"
-    else:
-        bucket = await classify_with_llm(
-            ollama,
-            classifier_model,
-            text,
-            list(models.keys()),
-            max_chars=classifier_max_chars,
-            timeout=classifier_timeout,
-        )
-        source = "classifier"
-
+def _decide(bucket: str, models: dict[str, str], source: str) -> RouterDecision:
     decision = RouterDecision(bucket=bucket, model=models[bucket], source=source)
-    log.info("routed bucket=%s model=%s source=%s", decision.bucket, decision.model, decision.source)
+    log.info("routed bucket=%s model=%s source=%s", bucket, decision.model, source)
     return decision
