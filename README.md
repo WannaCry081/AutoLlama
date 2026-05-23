@@ -57,36 +57,21 @@ ollama pull deepseek-r1:14b
    cd AutoLlama
    ```
 
-2. Create and activate a virtual environment.
-
-   ```sh
-   python -m venv venv
-   source venv/bin/activate
-   ```
-
-3. Install Python dependencies.
-
-   ```sh
-   pip install -r requirements.txt
-   ```
-
-4. Create a local environment file.
-
-   ```sh
-   cp .env.example .env
-   ```
-
-5. Start Ollama if it is not already running.
+2. Start Ollama if it is not already running.
 
    ```sh
    ollama serve
    ```
 
-6. Start AutoLlama.
+3. Run AutoLlama.
 
    ```sh
-   python main.py
+   ./RUN.sh
    ```
+
+The script creates `venv`, installs dependencies, and copies `.env.example` to
+`.env` on first run. If `venv` already exists, it skips setup and starts the
+server.
 
 The server starts at `http://127.0.0.1:8000` by default. If you are using the
 default settings, make sure Ollama is available at `http://localhost:11434`.
