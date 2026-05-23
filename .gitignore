@@ -1,3 +1,6 @@
 __pycache__
 venv/
 .code-review-graph
+.env
+.env.*
+!.env.example
