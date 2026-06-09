@@ -4,7 +4,7 @@
 
 **Please do not report security vulnerabilities through public GitHub Issues.**
 
-Instead, contact us directly at: **liraedata59@gmail.com**
+Instead, contact us directly at: [liraedata59@gmail.com](mailto:liraedata59@gmail.com)
 
 We will acknowledge your report within **48 hours** and aim to release a fix within **90 days**.
 
