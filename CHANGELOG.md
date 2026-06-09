@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/WannaCry081/AutoLlama/compare/v1.0.0...v1.1.0) (2026-06-09)
+
+
+### Features
+
+* add .markdownlintignore to exclude CHANGELOG.md from linting ([8be9e0c](https://github.com/WannaCry081/AutoLlama/commit/8be9e0cd69f39cbf2d9bfb0210d0a75bb1487ff0))
+* add favicon and initial index.html for web page ([01dae44](https://github.com/WannaCry081/AutoLlama/commit/01dae44fbb598843ea9a7e0d08ee6de0902458c7))
+* add favicon and initial index.html for web page ([8906b6c](https://github.com/WannaCry081/AutoLlama/commit/8906b6c2d330f7d54b4aeaca3c37ea4fcc792bd5))
+
+
+### Bug Fixes
+
+* update email formatting in Code of Conduct and Security documents ([9009af3](https://github.com/WannaCry081/AutoLlama/commit/9009af34ba370c952ffc2623c0f1c5ba74eb63ec))
+
 ## 1.0.0 (2026-06-09)
 
 
