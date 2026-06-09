@@ -1,0 +1,5 @@
+# CODEOWNERS — who gets automatically added as reviewer for pull requests.
+# Replace @<OWNER> with your GitHub username or a team (e.g. @my-org/maintainers).
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+* @<OWNER>

@@ -1,0 +1,10 @@
+# Disable blank issues and direct people to the right place.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Ask a question
+    url: https://github.com/WannaCry081/autollama/discussions
+    about: Use GitHub Discussions for questions, ideas, and general help.
+  - name: Report a security vulnerability
+    url: https://github.com/WannaCry081/autollama/security/advisories/new
+    about: Report security issues privately — do not use public issues.

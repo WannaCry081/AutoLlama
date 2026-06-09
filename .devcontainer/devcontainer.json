@@ -1,0 +1,42 @@
+// devcontainer.json — defines the development container for this project.
+// Open this repo in VS Code + Docker and it sets up a complete dev environment automatically.
+// Learn more: https://containers.dev
+{
+  "name": "autollama",
+
+  // A minimal Ubuntu base — no language runtime. Add yours below.
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+
+  "features": {
+    // Common tools: zsh, curl, git
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "username": "vscode"
+    },
+    // GitHub CLI (gh)
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+
+    // ── Add your language runtime here ────────────────────────────────────
+    // Node.js:   "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
+    // Python:    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
+    // Go:        "ghcr.io/devcontainers/features/go:1": { "version": "latest" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "EditorConfig.EditorConfig",
+        "DavidAnson.vscode-markdownlint",
+        "redhat.vscode-yaml",
+        "GitHub.vscode-github-actions"
+        // Add project-specific extensions here
+      ]
+    }
+  },
+
+  // Run `make setup` after the container starts (safe to run if not configured)
+  "postCreateCommand": "make setup || true",
+
+  "remoteUser": "vscode"
+}

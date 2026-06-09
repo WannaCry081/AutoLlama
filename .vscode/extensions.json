@@ -1,0 +1,15 @@
+{
+  // These extensions are recommended for everyone working on this project.
+  // VS Code will prompt you to install them when you open the repo.
+  "recommendations": [
+    "EditorConfig.EditorConfig",        // Enforces .editorconfig settings
+    "DavidAnson.vscode-markdownlint",   // Markdown linting
+    "redhat.vscode-yaml",               // YAML support
+    "GitHub.vscode-github-actions"      // GitHub Actions syntax highlighting
+
+    // ── Add project-specific extensions below ────────────────────────────
+    // JavaScript/TypeScript: "dbaeumer.vscode-eslint", "esbenp.prettier-vscode"
+    // Python:                "ms-python.python", "charliermarsh.ruff"
+    // Go:                    "golang.go"
+  ]
+}

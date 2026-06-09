@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      # On every merge to main, release-please either:
+      #   - Creates/updates a "Release PR" with the bumped version and changelog, or
+      #   - If the Release PR was just merged, creates the GitHub release and tag.
+      #
+      # Version is determined by conventional commit prefixes since the last release:
+      #   feat!: / BREAKING CHANGE → major  (1.0.0 → 2.0.0)
+      #   feat:                    → minor  (1.0.0 → 1.1.0)
+      #   fix: / chore: / etc.     → patch  (1.0.0 → 1.0.1)
+      #
+      # Change release-type in release-please-config.json to match your project: node, python, go, simple, etc.
+      # Docs: https://github.com/googleapis/release-please-action
+      - uses: googleapis/release-please-action@v4
+        id: release
+
+  # Everything below only runs after the Release PR is merged and a release is created.
+  publish:
+    name: Publish
+    needs: release
+    if: ${{ needs.release.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Add your project-specific publish steps below ─────────────────────
+      # Uncomment the block that matches your project type:
+      #
+      # Node.js / npm:
+      # - uses: actions/setup-node@v4
+      #   with: { node-version: "lts/*", registry-url: "https://registry.npmjs.org" }
+      # - run: npm ci && npm publish --access public
+      #   env: { NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} }
+      #
+      # Python / PyPI:
+      # - uses: actions/setup-python@v5
+      #   with: { python-version: "3.x" }
+      # - run: pip install build && python -m build
+      # - uses: pypa/gh-action-pypi-publish@release/v1
+      #   with: { password: ${{ secrets.PYPI_API_TOKEN }} }
+      #
+      # Docker / GitHub Container Registry:
+      # - uses: docker/login-action@v3
+      #   with: { registry: ghcr.io, username: ${{ github.actor }}, password: ${{ secrets.GITHUB_TOKEN }} }
+      # - uses: docker/build-push-action@v6
+      #   with: { push: true, tags: "ghcr.io/WannaCry081/docupal:${{ needs.release.outputs.tag_name }}" }
