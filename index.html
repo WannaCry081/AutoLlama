@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AutoLlama — Local LLM Router</title>
+    <meta
+      name="description"
+      content="A local HTTP service that exposes an OpenAI-compatible Chat Completions API and routes each request to the best locally installed Ollama model for the prompt."
+    />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <script>
+      (function () {
+        const saved = localStorage.getItem("theme");
+        const preferred = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "dark"
+          : "light";
+        document.documentElement.setAttribute("data-theme", saved || preferred);
+      })();
+    </script>
+
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --font: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        --mono: "SF Mono", "Fira Code", Consolas, monospace;
+
+        --bg: #ffffff;
+        --bg-alt: #f4f4f5;
+        --border: #e4e4e7;
+        --text: #09090b;
+        --text-2: #52525b;
+        --text-3: #a1a1aa;
+        --accent: #c2410c;
+
+        --tw-bg: #f4f4f5;
+        --tw-copy-bg: #ffffff;
+        --tw-copy-fg: #71717a;
+        --tw-copy-hbg: #f4f4f5;
+        --tw-copy-hfg: #09090b;
+        --tw-cmd: #18181b;
+      }
+
+      [data-theme="dark"] {
+        --bg: #09090b;
+        --bg-alt: #111113;
+        --border: #27272a;
+        --text: #fafafa;
+        --text-2: #a1a1aa;
+        --text-3: #52525b;
+        --accent: #f97316;
+
+        --tw-bg: #18181b;
+        --tw-copy-bg: #27272a;
+        --tw-copy-fg: #71717a;
+        --tw-copy-hbg: #3f3f46;
+        --tw-copy-hfg: #e4e4e7;
+        --tw-cmd: #d4d4d8;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        transition:
+          background 0.2s,
+          color 0.2s;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      svg {
+        display: block;
+        flex-shrink: 0;
+      }
+
+      .container {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* Header */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        border-bottom: 1px solid var(--border);
+        background: color-mix(in srgb, var(--bg) 88%, transparent);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: background 0.2s;
+      }
+
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 56px;
+      }
+
+      .logo {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .nav-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: var(--font);
+        color: var(--text-2);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          background 0.15s;
+        text-decoration: none;
+      }
+
+      .nav-btn:hover {
+        color: var(--text);
+        background: color-mix(in srgb, var(--border) 60%, transparent);
+      }
+
+      /* Hero */
+      .hero {
+        padding: 96px 24px;
+        text-align: center;
+      }
+
+      .hero-inner {
+        max-width: 760px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h1 {
+        font-size: clamp(2.8rem, 7vw, 5rem);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1.04;
+        margin-bottom: 32px;
+      }
+
+      .h1-accent {
+        color: var(--accent);
+      }
+
+      /* Terminal widget */
+      .tw {
+        width: 100%;
+        max-width: 560px;
+        background: var(--tw-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 32px;
+        transition:
+          background 0.2s,
+          border-color 0.2s;
+      }
+
+      .tw-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .tw-label {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text-3);
+      }
+
+      .tw-copy {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--font);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--tw-copy-fg);
+        background: var(--tw-copy-bg);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 4px 12px;
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          background 0.15s;
+      }
+
+      .tw-copy:hover {
+        color: var(--tw-copy-hfg);
+        background: var(--tw-copy-hbg);
+      }
+      .tw-copy.copied {
+        color: var(--accent);
+      }
+
+      .tw-body {
+        padding: 24px 16px;
+      }
+
+      .tw-cmd {
+        font-family: var(--mono);
+        font-size: 13.5px;
+        line-height: 1.5;
+        color: var(--tw-cmd);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        overflow-x: auto;
+      }
+
+      .tw-prompt {
+        color: var(--accent);
+        user-select: none;
+      }
+
+      /* Buttons */
+      .cta-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border-radius: 9999px;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: var(--font);
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        transition:
+          background 0.15s,
+          color 0.15s,
+          opacity 0.15s;
+      }
+
+      .btn-secondary {
+        background: var(--text);
+        color: var(--bg);
+      }
+
+      .btn-secondary:hover {
+        opacity: 0.82;
+      }
+
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-2);
+        border: 1px solid var(--border);
+      }
+
+      .btn-ghost:hover {
+        color: var(--text);
+        border-color: var(--text-3);
+        background: color-mix(in srgb, var(--border) 50%, transparent);
+      }
+
+      /* Sections */
+      section {
+        padding: 80px 0;
+      }
+
+      .features,
+      .install {
+        border-top: 1px solid var(--border);
+      }
+
+      .features {
+        background: var(--bg-alt);
+      }
+
+      .features .container,
+      .install .container {
+        text-align: center;
+      }
+
+      .s-tag {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 8px;
+      }
+
+      .s-head {
+        font-size: clamp(1.55rem, 3vw, 2rem);
+        font-weight: 700;
+        letter-spacing: -0.035em;
+        line-height: 1.15;
+        margin-bottom: 8px;
+      }
+
+      .s-sub {
+        font-size: 15px;
+        line-height: 1.65;
+        color: var(--text-2);
+        max-width: 46ch;
+        margin: 0 auto 48px;
+      }
+
+      /* Feature grid */
+      .f-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        border-top: 1px solid var(--border);
+        border-left: 1px solid var(--border);
+      }
+
+      .f-item {
+        padding: 24px;
+        border-right: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        transition: background 0.15s;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .f-item:hover {
+        background: color-mix(in srgb, var(--border) 30%, transparent);
+      }
+
+      .f-icon {
+        width: 18px;
+        height: 18px;
+        color: var(--text-3);
+        margin-bottom: 16px;
+      }
+
+      .f-name {
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-bottom: 4px;
+      }
+
+      .f-desc {
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--text-2);
+      }
+
+      /* Install steps */
+      .steps {
+        display: grid;
+        gap: 32px;
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: left;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 36px 1fr;
+        gap: 0 24px;
+        align-items: start;
+      }
+
+      .step-n {
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-3);
+        padding-top: 4px;
+        letter-spacing: 0.02em;
+      }
+
+      .step-body {
+        min-width: 0;
+      }
+
+      .step-body h3 {
+        font-size: 14.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-bottom: 4px;
+      }
+
+      .step-body p {
+        font-size: 13px;
+        color: var(--text-2);
+        margin-bottom: 8px;
+      }
+
+      .step-body p:last-child {
+        margin-bottom: 0;
+      }
+
+      pre {
+        background: var(--tw-bg);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 12px 16px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--tw-cmd);
+        overflow-x: auto;
+        max-width: 100%;
+        line-height: 1.6;
+        margin-bottom: 8px;
+        transition:
+          background 0.2s,
+          border-color 0.2s,
+          color 0.2s;
+      }
+
+      code {
+        font-family: var(--mono);
+        font-size: 0.9em;
+        color: var(--text-2);
+        background: color-mix(in srgb, var(--border) 50%, transparent);
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
+
+      .or-line {
+        font-size: 12px;
+        color: var(--text-3);
+        margin: 8px 0;
+      }
+
+      /* Footer */
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 32px 0;
+      }
+
+      .foot-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+
+      .foot-copy {
+        font-size: 13px;
+        color: var(--text-3);
+      }
+
+      .foot-links {
+        display: flex;
+        gap: 20px;
+      }
+
+      .foot-links a {
+        font-size: 13px;
+        color: var(--text-3);
+        transition: color 0.15s;
+      }
+
+      .foot-links a:hover {
+        color: var(--text-2);
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+
+      /* Responsive */
+      @media (max-width: 640px) {
+        .container {
+          padding: 0 16px;
+        }
+        .hero {
+          padding: 72px 16px;
+        }
+        section {
+          padding: 56px 0;
+        }
+        .cta-row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .cta-row .btn {
+          justify-content: center;
+        }
+        .tw {
+          max-width: 100%;
+        }
+        .tw-cmd {
+          font-size: 12px;
+        }
+        .f-grid {
+          grid-template-columns: 1fr;
+        }
+        .step {
+          grid-template-columns: 28px 1fr;
+          gap: 0 16px;
+        }
+        .foot-links {
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+      }
+
+      @media (max-width: 400px) {
+        nav {
+          height: 52px;
+        }
+        .logo {
+          font-size: 13px;
+        }
+        .nav-btn {
+          padding: 6px 8px;
+          font-size: 12px;
+        }
+        h1 {
+          font-size: 2.2rem;
+        }
+        .s-head {
+          font-size: 1.4rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.01ms !important;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="container">
+        <nav aria-label="Main navigation">
+          <span class="logo">AutoLlama</span>
+          <div class="nav-actions">
+            <a
+              href="https://github.com/WannaCry081/AutoLlama"
+              target="_blank"
+              rel="noopener"
+              class="nav-btn"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.07.55-.17.55-.38v-1.34c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.88-1.17-.88-1.17-.72-.49.05-.48.05-.48.8.06 1.22.82 1.22.82.71 1.21 1.86.86 2.31.66.07-.51.28-.86.51-1.06-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.64 7.64 0 018 3.9c.68 0 1.36.09 2 .26 1.52-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0016 8c0-4.42-3.58-8-8-8z"
+                />
+              </svg>
+              GitHub
+            </a>
+            <button
+              id="themeToggle"
+              class="nav-btn"
+              aria-label="Switch to dark mode"
+            >
+              <svg
+                id="i-sun"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                style="display: none"
+              >
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+              <svg
+                id="i-moon"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            </button>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="hero-inner">
+        <h1 id="hero-heading">
+          One endpoint.<br />
+          <span class="h1-accent">Every model.</span>
+        </h1>
+
+        <div class="tw" role="region" aria-label="Quick install command">
+          <div class="tw-header">
+            <span class="tw-label">~ terminal</span>
+            <button
+              class="tw-copy"
+              id="copyBtn"
+              aria-label="Copy install command"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                />
+              </svg>
+              <span id="copyLabel">Copy</span>
+            </button>
+          </div>
+          <div class="tw-body">
+            <span class="tw-cmd">
+              <span class="tw-prompt">$</span>git clone
+              https://github.com/WannaCry081/AutoLlama.git
+            </span>
+          </div>
+        </div>
+
+        <div class="cta-row">
+          <a
+            href="https://github.com/WannaCry081/AutoLlama"
+            target="_blank"
+            rel="noopener"
+            class="btn btn-secondary"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.07.55-.17.55-.38v-1.34c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.88-1.17-.88-1.17-.72-.49.05-.48.05-.48.8.06 1.22.82 1.22.82.71 1.21 1.86.86 2.31.66.07-.51.28-.86.51-1.06-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.64 7.64 0 018 3.9c.68 0 1.36.09 2 .26 1.52-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0016 8c0-4.42-3.58-8-8-8z"
+              />
+            </svg>
+            View on GitHub
+          </a>
+          <a href="#install" class="btn btn-ghost">Quick start</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="features" aria-labelledby="features-heading">
+      <div class="container">
+        <p class="s-tag">Features</p>
+        <h2 class="s-head" id="features-heading">
+          Built for local AI,<br />no cloud required.
+        </h2>
+        <p class="s-sub">
+          AutoLlama proxies OpenAI-compatible clients to the best locally
+          running Ollama model — automatic routing, full streaming, zero cloud.
+        </p>
+
+        <div class="f-grid" role="list">
+          <div class="f-item" role="listitem">
+            <svg
+              class="f-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            <div class="f-name">Smart Routing</div>
+            <div class="f-desc">
+              Classifies the latest user message and forwards the request to the
+              best-configured Ollama model automatically.
+            </div>
+          </div>
+
+          <div class="f-item" role="listitem">
+            <svg
+              class="f-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            <div class="f-name">OpenAI-Compatible API</div>
+            <div class="f-desc">
+              Drop-in <code>base_url</code> for any OpenAI client. No API key
+              needed — point it at <code>http://127.0.0.1:8000/v1</code>.
+            </div>
+          </div>
+
+          <div class="f-item" role="listitem">
+            <svg
+              class="f-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="21" x2="4" y2="14" />
+              <line x1="4" y1="10" x2="4" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" y2="3" />
+              <line x1="20" y1="21" x2="20" y2="16" />
+              <line x1="20" y1="12" x2="20" y2="3" />
+              <line x1="1" y1="14" x2="7" y2="14" />
+              <line x1="9" y1="8" x2="15" y2="8" />
+              <line x1="17" y1="16" x2="23" y2="16" />
+            </svg>
+            <div class="f-name">Configurable Buckets</div>
+            <div class="f-desc">
+              Define <code>MODELS</code> and <code>BUCKET_DESCRIPTIONS</code> in
+              <code>.env</code>. Add or remove model buckets anytime.
+            </div>
+          </div>
+
+          <div class="f-item" role="listitem">
+            <svg
+              class="f-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="18" cy="18" r="3" />
+              <circle cx="6" cy="6" r="3" />
+              <path d="M13 6h3a2 2 0 0 1 2 2v7" />
+              <line x1="6" y1="9" x2="6" y2="21" />
+            </svg>
+            <div class="f-name">Direct Bypass</div>
+            <div class="f-desc">
+              Skip auto-routing by passing a bucket name or raw Ollama model tag
+              in the <code>model</code> field.
+            </div>
+          </div>
+
+          <div class="f-item" role="listitem">
+            <svg
+              class="f-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path
+                d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+              />
+            </svg>
+            <div class="f-name">Streaming Support</div>
+            <div class="f-desc">
+              Set <code>stream: true</code> to forward Ollama's event stream.
+              AutoLlama prepends one routing comment per stream.
+            </div>
+          </div>
+
+          <div class="f-item" role="listitem">
+            <svg
+              class="f-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
+              />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+            <div class="f-name">Router Metadata</div>
+            <div class="f-desc">
+              Non-streaming responses include an <code>x_router</code> object
+              with <code>bucket</code>, <code>model</code>, and
+              <code>source</code> fields.
+            </div>
+          </div>
+
+          <div class="f-item" role="listitem">
+            <svg
+              class="f-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+            <div class="f-name">Health Check</div>
+            <div class="f-desc">
+              <code>GET /healthcheck</code> returns Ollama connectivity status
+              and the configured server URL.
+            </div>
+          </div>
+
+          <div class="f-item" role="listitem">
+            <svg
+              class="f-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <div class="f-name">Startup Validation</div>
+            <div class="f-desc">
+              Checks bucket and description alignment, default bucket, and
+              classifier bucket at startup before accepting traffic.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="install" id="install" aria-labelledby="install-heading">
+      <div class="container">
+        <p class="s-tag">Getting Started</p>
+        <h2 class="s-head" id="install-heading">
+          Up and running<br />in three steps.
+        </h2>
+        <p class="s-sub">
+          Clone, start Ollama, and launch. The run script creates a virtual
+          environment, installs dependencies, and starts the server
+          automatically.
+        </p>
+
+        <ol class="steps" aria-label="Installation steps">
+          <li class="step">
+            <span class="step-n" aria-hidden="true">01</span>
+            <div class="step-body">
+              <h3>Pull the Ollama models</h3>
+              <p>Download the four default model buckets AutoLlama expects.</p>
+              <pre>
+ollama pull qwen3:30b-a3b
+ollama pull qwen2.5-coder:32b
+ollama pull qwen2.5:7b
+ollama pull deepseek-r1:14b</pre
+              >
+            </div>
+          </li>
+
+          <li class="step">
+            <span class="step-n" aria-hidden="true">02</span>
+            <div class="step-body">
+              <h3>Clone the repository</h3>
+              <p>Get a local copy of AutoLlama and enter the directory.</p>
+              <pre>
+git clone https://github.com/WannaCry081/AutoLlama.git
+cd AutoLlama</pre
+              >
+              <p class="or-line">Start Ollama if it is not already running:</p>
+              <pre>ollama serve</pre>
+            </div>
+          </li>
+
+          <li class="step">
+            <span class="step-n" aria-hidden="true">03</span>
+            <div class="step-body">
+              <h3>Launch AutoLlama</h3>
+              <p>
+                The run script sets up a <code>venv</code>, installs
+                dependencies, copies <code>.env.example</code> to
+                <code>.env</code> on first run, and starts the server at
+                <code>http://127.0.0.1:8000</code>.
+              </p>
+              <pre>./run.sh</pre>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <footer>
+      <div class="container">
+        <div class="foot-inner">
+          <span class="foot-copy"
+            >&copy; 2026 AutoLlama &middot; MIT License</span
+          >
+          <nav class="foot-links" aria-label="Footer links">
+            <a
+              href="https://github.com/WannaCry081/AutoLlama"
+              target="_blank"
+              rel="noopener"
+              >GitHub</a
+            >
+            <a href="CONTRIBUTING.md">Contributing</a>
+            <a href="SECURITY.md">Security</a>
+            <a href="LICENSE">License</a>
+          </nav>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      const themeBtn = document.getElementById("themeToggle");
+      const sunIcon = document.getElementById("i-sun");
+      const moonIcon = document.getElementById("i-moon");
+
+      function setTheme(theme) {
+        document.documentElement.setAttribute("data-theme", theme);
+        const dark = theme === "dark";
+        sunIcon.style.display = dark ? "block" : "none";
+        moonIcon.style.display = dark ? "none" : "block";
+        themeBtn.setAttribute(
+          "aria-label",
+          dark ? "Switch to light mode" : "Switch to dark mode",
+        );
+      }
+
+      setTheme(document.documentElement.getAttribute("data-theme") || "light");
+
+      themeBtn.addEventListener("click", () => {
+        const next =
+          document.documentElement.getAttribute("data-theme") === "dark"
+            ? "light"
+            : "dark";
+        setTheme(next);
+        localStorage.setItem("theme", next);
+      });
+
+      const copyBtn = document.getElementById("copyBtn");
+      const copyLabel = document.getElementById("copyLabel");
+
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard
+          .writeText("git clone https://github.com/WannaCry081/AutoLlama.git")
+          .then(() => {
+            copyBtn.classList.add("copied");
+            copyLabel.textContent = "Copied!";
+            setTimeout(() => {
+              copyBtn.classList.remove("copied");
+              copyLabel.textContent = "Copy";
+            }, 2000);
+          });
+      });
+    </script>
+  </body>
+</html>

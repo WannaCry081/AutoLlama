@@ -20,7 +20,7 @@ We are committed to making participation in this project a harassment-free exper
 
 ## Reporting
 
-If you experience or witness unacceptable behavior, please report it to **liraedata59@gmail.com**.
+If you experience or witness unacceptable behavior, please report it to [liraedata59@gmail.com](mailto:liraedata59@gmail.com).
 
 All reports are reviewed promptly and handled with discretion.
 
